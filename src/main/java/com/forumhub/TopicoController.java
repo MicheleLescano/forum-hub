@@ -9,6 +9,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -22,20 +23,24 @@ public class TopicoController {
     @Autowired
     private TopicoRepository repository;
 
+    @Autowired
+    private RespostaRepository respostaRepository;
+
     @PostMapping
     @Transactional
-    public void cadastrar(@RequestBody  @Valid DadosCadastroTopico dados) {
+    public void cadastrar(@RequestBody  @Valid DadosCadastroTopico dados, Authentication authentication) {
         if (repository.findByTituloAndMensagem(dados.titulo(), dados.mensagem()).isPresent()) {
             throw new DataIntegrityViolationException("Tópico duplicado! Já existe um tópico com este mesmo título e mensagem.");
         }
 
+        var autor = (Usuario) authentication.getPrincipal();
         var topico = new Topico();
         topico.setTitulo(dados.titulo());
         topico.setMensagem(dados.mensagem());
-        topico.setAutor(dados.autor());
+        topico.setAutor(autor);
         topico.setCurso(dados.curso());
-        topico.setDataCriacao(LocalDateTime.now()); // Definir a data no momento do cadastro
-        topico.setStatus("NAO_RESPONDIDO"); // Definir um status inicial
+        topico.setDataCriacao(LocalDateTime.now());
+        topico.setStatus("NAO_RESPONDIDO");
         topico.setAtivo(true);
 
         repository.save(topico);
@@ -57,8 +62,6 @@ public class TopicoController {
         return ResponseEntity.ok(new DadosDetalhamentoTopico(topicoOptional.get()));
     }
 
-    // No TopicoController.java
-
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<DadosDetalhamentoTopico> atualizar(@PathVariable Long id, @RequestBody @Valid DadosAtualizacaoTopico dados) {
@@ -77,16 +80,6 @@ public class TopicoController {
         return ResponseEntity.ok(new DadosDetalhamentoTopico(topico));
     }
 
-
-//    @PutMapping("/{id}")
-//    @Transactional
-//    public ResponseEntity<DadosDetalhamentoTopico> atualizar(@PathVariable Long id, @RequestBody DadosAtualizacaoTopico dados) {
-//        var topico = repository.getReferenceById(id);
-//        topico.atualizarInformacoes(dados);
-//
-//        return ResponseEntity.ok(new DadosDetalhamentoTopico(topico));
-//    }
-
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity excluir(@PathVariable Long id) {
@@ -94,6 +87,15 @@ public class TopicoController {
         topico.excluir();
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/respostas")
+    public ResponseEntity<List<DadosDetalhamentoResposta>> listarRespostasPorTopico(@PathVariable Long id) {
+        var respostas = respostaRepository.findByTopicoIdAndAtivoTrue(id)
+                .stream()
+                .map(DadosDetalhamentoResposta::new)
+                .toList();
+        return ResponseEntity.ok(respostas);
     }
 
 }

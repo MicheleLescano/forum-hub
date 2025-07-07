@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity(name = "Topico")
 @Table(name = "topicos")
@@ -21,10 +23,16 @@ public class Topico {
     private String mensagem;
     private LocalDateTime dataCriacao;
     private String status;
-    private String autor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autor_id")
+    private Usuario autor;
     private String curso;
 
     private boolean ativo;
+
+    @OneToMany(mappedBy = "topico", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Resposta> respostas = new ArrayList<>();
 
     public void atualizarInformacoes(DadosAtualizacaoTopico dados) {
         if (dados.titulo() != null) {
